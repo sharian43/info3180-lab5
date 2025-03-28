@@ -5,5 +5,5 @@
 </template>
 
 <script setup>
-import MovieForm from '../components/MovieForm.vue';
+import MovieForm from '@/components/MovieForm.vue';
 </script>
