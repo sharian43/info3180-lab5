@@ -12,6 +12,8 @@ from werkzeug.utils import secure_filename
 from . import db
 from .models import Movie
 from .forms import MovieForm
+from flask_wtf.csrf import generate_csrf 
+
 
 ###
 # Routing for your application.
@@ -21,41 +23,40 @@ from .forms import MovieForm
 def index():
     return jsonify(message="This is the beginning of our API")
 
-
+@app.route('/api/v1/csrf-token', methods=['GET']) 
+def get_csrf(): 
+    return jsonify({'csrf_token': generate_csrf()}) 
 ###
 # The functions below should be applicable to all Flask apps.
 ###
 @app.route('/api/v1/movies', methods=['POST'])
 def movies():
-    form = MovieForm(request.form, request.files)
+    form = MovieForm()
     if form.validate_on_submit():
-        # Get data from form
-        title = form.title.data
-        description = form.description.data
-        photo_file = form.poster.data
+        title = request.form['title']
+        description = request.form['description']
+        photo_file = request.files['poster']
 
-        # Ensure the upload folder exists
-        upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-
-        # Secure and save the uploaded file
         filename = secure_filename(photo_file.filename)
-        file_path = os.path.join(upload_folder, filename)
-        photo_file.save(file_path)
-
-        # Create a new movie record
+        photo_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        
         movie = Movie(title=title, description=description, poster=filename)
-        db.session.add(movie)
-        db.session.commit()
 
-        return jsonify({
+        db.session.add(movie)
+        db.session.commit()   
+        response = {
             "message": "Movie successfully added",
             "title": movie.title,
             "poster": movie.poster,
-            "description": movie.description
-        }), 201
-    return jsonify({"errors": form_errors(form)}), 400
+            "description": movie.description,
+        }
+        return jsonify(response), 200
+    else:
+        errors = form_errors(form)
+        response = {"errors": errors}
+        return jsonify(response), 400
+
+
 
 # Here we define a function to collect form errors from Flask-WTF
 # which we can later use
